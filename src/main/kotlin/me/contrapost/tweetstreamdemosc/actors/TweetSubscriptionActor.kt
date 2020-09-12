@@ -5,20 +5,16 @@ import akka.actor.Props
 import akka.event.Logging
 import me.contrapost.tweetstreamdemosc.util.getLastTweet
 import me.contrapost.tweetstreamdemosc.util.getNewTweets
-import me.contrapost.tweetstreamdemosc.util.getStream
-import me.contrapost.tweetstreamdemosc.util.setupRules
 import scala.concurrent.duration.Duration
-import java.io.BufferedReader
 import java.util.concurrent.TimeUnit
 
-class TweetStreamerActor(private val userName: String) : AbstractActor() {
+class TweetSubscriptionActor(private val userName: String) : AbstractActor() {
 
     var lastTweetId: String? = null
 
-    private fun dispatchPollCommand() = context
+    private val pollScheduler = context
         .system
-        .scheduler()
-        .schedule(
+        .scheduler().schedule(
             Duration.create(5_000, TimeUnit.MILLISECONDS),
             Duration.create(25_000, TimeUnit.MILLISECONDS),
             self,
@@ -27,12 +23,13 @@ class TweetStreamerActor(private val userName: String) : AbstractActor() {
             self
         )
 
+
     companion object {
 
         val BEARER_TOKEN: String = System.getenv("TWITTER_BEARER_TOKEN")
 
         fun props(userName: String): Props =
-            Props.create(TweetStreamerActor::class.java) { TweetStreamerActor(userName) }
+            Props.create(TweetSubscriptionActor::class.java) { TweetSubscriptionActor(userName) }
     }
 
     private val logger = Logging.getLogger(context.system, this)
@@ -40,15 +37,19 @@ class TweetStreamerActor(private val userName: String) : AbstractActor() {
     override fun createReceive(): Receive = receiveBuilder()
         .match(PollCmd::class.java, ::pollTweets)
         .match(GetData::class.java, ::getData)
+        .match(Shutdown::class.java, ::shutdown)
         .build()
 
     override fun preStart() {
-        context
         super.preStart()
         logger.info("Starting to stream tweets from $userName")
         lastTweetId = getLastTweet(userName, BEARER_TOKEN)?.id
         logger.info("Last tweet: $lastTweetId")
-        dispatchPollCommand()
+    }
+
+    override fun postStop() {
+        logger.info("Stopped to stream tweets from $userName")
+        super.postStop()
     }
 
     private fun pollTweets(pollMessage: PollCmd) {
@@ -65,8 +66,14 @@ class TweetStreamerActor(private val userName: String) : AbstractActor() {
         sender.tell(lastTweetId ?: "done", self)
     }
 
+    private fun shutdown(cmd: Shutdown) {
+        pollScheduler.cancel()
+        context.stop(self)
+    }
 }
 
 private object PollCmd
 
 object GetData
+
+object Shutdown
