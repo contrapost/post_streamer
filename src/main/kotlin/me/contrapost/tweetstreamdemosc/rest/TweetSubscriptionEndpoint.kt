@@ -2,16 +2,18 @@ package me.contrapost.tweetstreamdemosc.rest
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.pattern.Patterns
-import me.contrapost.tweetstreamdemosc.actors.GetData
-import me.contrapost.tweetstreamdemosc.actors.Shutdown
-import me.contrapost.tweetstreamdemosc.actors.TweetSubscriptionActor
+import akka.pattern.Patterns.ask
+import me.contrapost.tweetstreamdemosc.actors.*
+import me.contrapost.tweetstreamdemosc.actors.TweetSubscriptionActor.Companion.SUBSCRIPTION_ACTOR_NAME_PREFIX
+import me.contrapost.tweetstreamdemosc.actors.TweetSubscriptionActor.Companion.validateSetup
 import org.springframework.web.bind.annotation.*
 import scala.util.Failure
 import scala.util.Success
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import javax.validation.Valid
 import javax.validation.constraints.NotEmpty
+import javax.validation.constraints.Pattern
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
@@ -21,51 +23,89 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
     @PostMapping(value = ["/subscription"], produces = [MediaType.APPLICATION_JSON])
     fun createSubscription(
         @RequestBody @Valid subscriptionRequest: SubscriptionRequest
-    ): CompletableFuture<Response> {
+    ): Response {
         val twitterUserName = subscriptionRequest.twitterUserName
         val subscriberId = subscriptionRequest.subscriberId
 
-        val actorName = "tweet-streamer-actor-$twitterUserName-$subscriberId"
+        val actorName = "$SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId"
 
-        val resolveCompletionStage = actorSystem.actorSelection("user/$actorName").resolveOne(java.time.Duration.ofMillis(1_000))
+        val resolveCompletionStage =
+            actorSystem.actorSelection("user/$actorName").resolveOne(java.time.Duration.ofMillis(3_000))
 
-        return resolveCompletionStage.toCompletableFuture().thenApply {
-            Response.status(Response.Status.CONFLICT).entity("Already exists").build()
-        }.exceptionally {
-            val subscriptionActor = actorSystem.actorOf(TweetSubscriptionActor.props(twitterUserName!!), actorName)
+        return resolveCompletionStage.toCompletableFuture()
+            .thenApply {
+                Response.status(Response.Status.CONFLICT).entity("Already exists").build()
+            }.exceptionally {
 
-            val future = CompletableFuture<String>()
-            Patterns.ask(subscriptionActor, GetData, 1_000).onComplete(complete(future), actorSystem.dispatcher)
-            Response.ok().entity(future.get()).build()
-        }
+                val pollInterval = subscriptionRequest.updateInterval?.toDuration()
+                val subscriptionRegistrationRequest = RegisterSubscription(pollInterval)
+                val setUpValidation = validateSetup(subscriptionRegistrationRequest)
+
+                when {
+                    setUpValidation.valid -> {
+                        try {
+                            val subscriptionActor =
+                                actorSystem.actorOf(TweetSubscriptionActor.props(twitterUserName!!), actorName)
+
+                            val future = CompletableFuture<SubscriptionRegistrationResult>()
+                            ask(subscriptionActor, RegisterSubscription(pollInterval), 3_000)
+                                .onComplete(complete(future), actorSystem.dispatcher)
+                            val result = future.get()
+                            when {
+                                result.created -> Response.ok().entity(result).build()
+                                else -> Response.status(Response.Status.BAD_REQUEST).entity(result).build()
+                            }
+                        } catch (thr: Throwable) {
+                            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                                .entity(thr.message ?: "internal error message")
+                                .build()
+                        }
+                    }
+                    else -> Response.status(Response.Status.BAD_REQUEST).entity(setUpValidation).build()
+                }
+            }.get()
     }
 
     @DeleteMapping(value = ["/subscription/{subscriberId}"])
     fun deleteAllSubscriptions(
         @PathVariable subscriberId: String
-    ) {
-        actorSystem.actorSelection("user/*$subscriberId").tell(Shutdown, ActorRef.noSender())
+    ): Response {
+        actorSystem.actorSelection("user/$SUBSCRIPTION_ACTOR_NAME_PREFIX*$subscriberId")
+            .tell(Shutdown, ActorRef.noSender())
+        return Response.status(Response.Status.ACCEPTED)
+            .entity("Cancellation of subscriptions for subscriber with id '$subscriberId' accepted")
+            .build()
     }
 
     @DeleteMapping(value = ["/subscription/{subscriberId}/{twitterUserName}"])
     fun deleteSubscription(
         @PathVariable subscriberId: String,
         @PathVariable twitterUserName: String
-    ) {
-        actorSystem.actorSelection("user/tweet-streamer-actor-$twitterUserName-$subscriberId").tell(Shutdown, ActorRef.noSender())
+    ): Response {
+        actorSystem.actorSelection("user/$SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId")
+            .tell(Shutdown, ActorRef.noSender())
+        return Response.status(Response.Status.ACCEPTED)
+            .entity("Cancellation of subscription '$twitterUserName' for subscriber with id '$subscriberId' accepted")
+            .build()
     }
 
-    fun complete(futureResult: CompletableFuture<String>) = { result: Any ->
-        when (result) {
-            is Success<*> -> {
-                futureResult.complete(result.get().toString())
+    fun complete(futureResult: CompletableFuture<SubscriptionRegistrationResult>) = { result: Any ->
+        try {
+            when (result) {
+                is Success<*> -> futureResult.complete(result.get() as SubscriptionRegistrationResult)
+                is Failure<*> -> futureResult.completeExceptionally(result.exception())
+                else -> futureResult.completeExceptionally(IllegalArgumentException("Unknown response type: $result"))
             }
-            is Failure<*> -> {
-            }
-            else -> {
-            }
+        } catch (throwable: Throwable) {
+            futureResult.completeExceptionally(throwable)
         }
     }
+}
+
+private fun String.toDuration(): PollInterval = when {
+    this.contains("S", true) -> PollInterval(this.replace("S", "", true).toLong(), TimeUnit.SECONDS)
+    this.contains("M", true) -> PollInterval(this.replace("M", "", true).toLong(), TimeUnit.MINUTES)
+    else -> PollInterval(this.replace("H", "", true).toLong(), TimeUnit.HOURS)
 }
 
 
@@ -74,5 +114,6 @@ data class SubscriptionRequest(
     val twitterUserName: String? = null,
     @field:NotEmpty(message = "Subscriber id is mandatory")
     val subscriberId: String? = null,
+    @field:Pattern(regexp = "\\d+[SMHsmh]", message = "Update interval should follow pattern 'd+[SMHsmh]'")
     val updateInterval: String? = null
 )
