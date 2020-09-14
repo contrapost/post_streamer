@@ -1,11 +1,11 @@
-package me.contrapost.tweetstreamdemosc
+package me.contrapost.poststreamdemosc
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class TweetStreamDemoSCApplication
+class PostStreamDemoSCApplication
 
 fun main(args: Array<String>) {
-	runApplication<TweetStreamDemoSCApplication>(*args)
+	runApplication<PostStreamDemoSCApplication>(*args)
 }

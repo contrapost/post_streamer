@@ -9,9 +9,9 @@
     <relativePath /> <!-- lookup parent from repository -->
   </parent>
   <groupId>me.contrapost</groupId>
-  <artifactId>tweetstreamdemosc</artifactId>
+  <artifactId>poststreamdemosc</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>tweetstreamdemosc</name>
+  <name>poststreamdemosc</name>
   <description>Demo project for Spring Boot</description>
 
   <properties>

@@ -1,4 +1,4 @@
-package me.contrapost.tweetstreamdemosc.config
+package me.contrapost.poststreamdemosc.config
 
 import akka.actor.ActorSystem
 import org.slf4j.LoggerFactory
@@ -9,7 +9,7 @@ import javax.annotation.PreDestroy
 
 @Configuration
 class ActorSystemConfig {
-    private val actorSystemName = "TweetStreamSystem"
+    private val actorSystemName = "PostStreamSystem"
     private val logger = LoggerFactory.getLogger(javaClass)
     private lateinit var actorSystem: ActorSystem
 

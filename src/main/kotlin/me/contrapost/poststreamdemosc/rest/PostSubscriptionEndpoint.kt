@@ -1,11 +1,12 @@
-package me.contrapost.tweetstreamdemosc.rest
+package me.contrapost.poststreamdemosc.rest
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.Patterns.ask
-import me.contrapost.tweetstreamdemosc.actors.*
-import me.contrapost.tweetstreamdemosc.actors.TweetSubscriptionActor.Companion.SUBSCRIPTION_ACTOR_NAME_PREFIX
-import me.contrapost.tweetstreamdemosc.actors.TweetSubscriptionActor.Companion.validateSetup
+import me.contrapost.poststreamdemosc.actors.*
+import me.contrapost.poststreamdemosc.actors.ActorNamePrefixes.TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX
+import me.contrapost.poststreamdemosc.actors.PostSubscriptionActor.Companion.validateSetup
+import me.contrapost.poststreamdemosc.pollers.twitter.TwitterPostPoller
 import org.springframework.web.bind.annotation.*
 import scala.util.Failure
 import scala.util.Success
@@ -20,14 +21,14 @@ import javax.ws.rs.core.Response
 @RestController
 class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
 
-    @PostMapping(value = ["/subscription"], produces = [MediaType.APPLICATION_JSON])
+    @PostMapping(value = ["/twitter"], produces = [MediaType.APPLICATION_JSON])
     fun createSubscription(
         @RequestBody @Valid subscriptionRequest: SubscriptionRequest
     ): Response {
         val twitterUserName = subscriptionRequest.twitterUserName
         val subscriberId = subscriptionRequest.subscriberId
 
-        val actorName = "$SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId"
+        val actorName = "$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId"
 
         val resolveCompletionStage =
             actorSystem.actorSelection("user/$actorName").resolveOne(java.time.Duration.ofMillis(3_000))
@@ -45,7 +46,7 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
                     setUpValidation.valid -> {
                         try {
                             val subscriptionActor =
-                                actorSystem.actorOf(TweetSubscriptionActor.props(twitterUserName!!), actorName)
+                                actorSystem.actorOf(PostSubscriptionActor.props(twitterUserName!!, TwitterPostPoller()), actorName)
 
                             val future = CompletableFuture<SubscriptionRegistrationResult>()
                             ask(subscriptionActor, RegisterSubscription(pollInterval), 3_000)
@@ -66,23 +67,23 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
             }.get()
     }
 
-    @DeleteMapping(value = ["/subscription/{subscriberId}"])
+    @DeleteMapping(value = ["/twitter/{subscriberId}"])
     fun deleteAllSubscriptions(
         @PathVariable subscriberId: String
     ): Response {
-        actorSystem.actorSelection("user/$SUBSCRIPTION_ACTOR_NAME_PREFIX*$subscriberId")
+        actorSystem.actorSelection("user/$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX*$subscriberId")
             .tell(Shutdown, ActorRef.noSender())
         return Response.status(Response.Status.ACCEPTED)
             .entity("Cancellation of subscriptions for subscriber with id '$subscriberId' accepted")
             .build()
     }
 
-    @DeleteMapping(value = ["/subscription/{subscriberId}/{twitterUserName}"])
+    @DeleteMapping(value = ["/twitter/{subscriberId}/{twitterUserName}"])
     fun deleteSubscription(
         @PathVariable subscriberId: String,
         @PathVariable twitterUserName: String
     ): Response {
-        actorSystem.actorSelection("user/$SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId")
+        actorSystem.actorSelection("user/$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId")
             .tell(Shutdown, ActorRef.noSender())
         return Response.status(Response.Status.ACCEPTED)
             .entity("Cancellation of subscription '$twitterUserName' for subscriber with id '$subscriberId' accepted")

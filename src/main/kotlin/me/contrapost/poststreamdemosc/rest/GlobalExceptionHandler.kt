@@ -1,4 +1,4 @@
-package me.contrapost.tweetstreamdemosc.rest
+package me.contrapost.poststreamdemosc.rest
 
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler

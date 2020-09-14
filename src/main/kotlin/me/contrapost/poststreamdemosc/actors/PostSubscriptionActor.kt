@@ -1,34 +1,26 @@
-package me.contrapost.tweetstreamdemosc.actors
+package me.contrapost.poststreamdemosc.actors
 
 import akka.actor.AbstractActor
 import akka.actor.Cancellable
 import akka.actor.Props
 import akka.event.Logging
-import me.contrapost.tweetstreamdemosc.models.twitter.TweetDto
-import me.contrapost.tweetstreamdemosc.util.getLastTweet
-import me.contrapost.tweetstreamdemosc.util.getNewTweets
+import me.contrapost.poststreamdemosc.models.twitter.TweetDto
+import me.contrapost.poststreamdemosc.pollers.PostPoller
 import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 
-/**
- * Should be refactored to be stateful
- */
-class TweetSubscriptionActor(private val userName: String) : AbstractActor() {
+class PostSubscriptionActor(private val userName: String, private val pollerService: PostPoller) : AbstractActor() {
 
-    var lastTweetId: String? = null
-
+    private var lastTweetId: String? = null
     private lateinit var pollScheduler: Cancellable
+    private val logger = Logging.getLogger(context.system, this)
 
     companion object {
         val DEFAULT_INTERVAL = PollInterval(30, TimeUnit.SECONDS)
         private val MIN_POLLING_INTERVAL = PollInterval(10, TimeUnit.SECONDS)
 
-        val BEARER_TOKEN: String = System.getenv("TWITTER_BEARER_TOKEN")
-
-        const val SUBSCRIPTION_ACTOR_NAME_PREFIX = "tweet-subscription"
-
-        fun props(userName: String): Props =
-            Props.create(TweetSubscriptionActor::class.java) { TweetSubscriptionActor(userName) }
+        fun props(userName: String, poller: PostPoller): Props =
+            Props.create(PostSubscriptionActor::class.java) { PostSubscriptionActor(userName, poller) }
 
         fun validateSetup(registerSubscriptionMsg: RegisterSubscription): SubscriptionSetupValidationResult {
             val errors = mutableListOf<String>()
@@ -38,19 +30,8 @@ class TweetSubscriptionActor(private val userName: String) : AbstractActor() {
         }
     }
 
-    private val logger = Logging.getLogger(context.system, this)
-
-    override fun createReceive(): Receive = receiveBuilder()
-        .match(PollCmd::class.java, ::pollTweets)
-        .match(RegisterSubscription::class.java, ::registerSubscription)
-        .match(Shutdown::class.java, ::shutdown)
-        .build()
-
     override fun preStart() {
         super.preStart()
-        logger.info("Starting to stream tweets from $userName")
-        lastTweetId = getLastTweet(userName, BEARER_TOKEN)?.id
-        logger.info("Last tweet: $lastTweetId")
     }
 
     override fun postStop() {
@@ -58,8 +39,14 @@ class TweetSubscriptionActor(private val userName: String) : AbstractActor() {
         super.postStop()
     }
 
+    override fun createReceive(): Receive = receiveBuilder()
+        .match(PollCmd::class.java, ::pollTweets)
+        .match(RegisterSubscription::class.java, ::registerSubscription)
+        .match(Shutdown::class.java, ::shutdown)
+        .build()
+
     private fun pollTweets(pollMessage: PollCmd) {
-        val tweets = getNewTweets(userName, BEARER_TOKEN, lastTweetId)
+        val tweets = pollerService.getNewPosts(userName, lastTweetId)
         when {
             tweets.isNotEmpty() -> {
                 lastTweetId = tweets.first().id
@@ -75,23 +62,40 @@ class TweetSubscriptionActor(private val userName: String) : AbstractActor() {
 
     private fun registerSubscription(registerSubscriptionCmd: RegisterSubscription) {
         val pollInterval = registerSubscriptionCmd.pollInterval ?: DEFAULT_INTERVAL
-        pollScheduler = context
-            .system
-            .scheduler().schedule(
-                Duration.create(pollInterval.value, pollInterval.unit),
-                Duration.create(pollInterval.value, pollInterval.unit),
-                self,
-                PollCmd,
-                context.system.dispatcher,
-                self
+
+        runCatching {
+            pollerService.getLastPost(userName)?.id
+        }.onSuccess {
+            lastTweetId = it
+            logger.info("Starting to stream tweets from $userName, last tweet: $lastTweetId")
+            pollScheduler = context
+                .system
+                .scheduler().schedule(
+                    Duration.create(pollInterval.value, pollInterval.unit),
+                    Duration.create(pollInterval.value, pollInterval.unit),
+                    self,
+                    PollCmd,
+                    context.system.dispatcher,
+                    self
+                )
+            sender.tell(
+                SubscriptionRegistrationResult(
+                    true,
+                    pollingInterval = pollInterval.toString(),
+                    subscriptionData = "Info"
+                ), self
             )
-        sender.tell(
-            SubscriptionRegistrationResult(
-                true,
-                pollingInterval = pollInterval.toString(),
-                subscriptionData = "Info"
-            ), self
-        )
+        }.onFailure {
+            sender.tell(
+                SubscriptionRegistrationResult(
+                    false,
+                    pollingInterval = pollInterval.toString(),
+                    errors = listOf(it.message ?: "Error while fetching post"),
+                    subscriptionData = "Info"
+                ), self
+            )
+            context.stop(self)
+        }
     }
 
     private fun shutdown(cmd: Shutdown) {
