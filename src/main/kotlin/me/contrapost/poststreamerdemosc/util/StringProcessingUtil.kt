@@ -1,4 +1,4 @@
-package me.contrapost.poststreamdemosc.util
+package me.contrapost.poststreamerdemosc.util
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 

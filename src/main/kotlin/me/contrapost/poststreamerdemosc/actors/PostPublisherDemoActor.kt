@@ -1,11 +1,11 @@
-package me.contrapost.poststreamdemosc.actors
+package me.contrapost.poststreamerdemosc.actors
 
 import akka.actor.AbstractActor
 import akka.actor.Props
 import akka.event.Logging
 import akka.japi.pf.ReceiveBuilder
-import me.contrapost.poststreamdemosc.demomessagingservice.DemoMessagingService
-import me.contrapost.poststreamdemosc.models.Post
+import me.contrapost.poststreamerdemosc.demomessagingservice.DemoMessagingService
+import me.contrapost.poststreamerdemosc.models.Post
 import java.util.*
 
 class PostPublisherDemoActor(private val userName: String, private val subscriberId: String) : AbstractActor() {

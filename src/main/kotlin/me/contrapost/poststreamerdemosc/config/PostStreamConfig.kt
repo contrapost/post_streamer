@@ -1,4 +1,4 @@
-package me.contrapost.poststreamdemosc.config
+package me.contrapost.poststreamerdemosc.config
 
 import akka.actor.ActorSystem
 import org.slf4j.LoggerFactory

@@ -1,6 +1,6 @@
-package me.contrapost.poststreamdemosc.pollers
+package me.contrapost.poststreamerdemosc.pollers
 
-import me.contrapost.poststreamdemosc.models.Post
+import me.contrapost.poststreamerdemosc.models.Post
 
 interface PostPoller {
     fun getLastPost(userName: String): Post?

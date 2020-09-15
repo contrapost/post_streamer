@@ -1,18 +1,19 @@
-package me.contrapost.poststreamdemosc.actors
+package me.contrapost.poststreamerdemosc.actors
 
 import akka.actor.*
 import akka.event.Logging
 import akka.pattern.Patterns.ask
-import me.contrapost.poststreamdemosc.models.Post
-import me.contrapost.poststreamdemosc.models.twitter.TweetDto
-import me.contrapost.poststreamdemosc.pollers.PostPoller
+import me.contrapost.poststreamerdemosc.models.Post
+import me.contrapost.poststreamerdemosc.pollers.PostPoller
 import scala.concurrent.duration.Duration
 import scala.util.Failure
 import scala.util.Success
-import java.lang.Exception
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
+/**
+ * TODO: consider to make the actor stateful (by extending AbstractPersistentActor)
+ */
 class PostSubscriptionActor(
     private val userName: String,
     private val subscriberId: String,
@@ -43,6 +44,7 @@ class PostSubscriptionActor(
 
     override fun preStart() {
         super.preStart()
+        logger.info("Starting actor for streaming posts from '$userName' for subscriber with id '$subscriberId'")
     }
 
     override fun postStop() {

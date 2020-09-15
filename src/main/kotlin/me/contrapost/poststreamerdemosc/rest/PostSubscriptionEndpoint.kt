@@ -1,13 +1,13 @@
-package me.contrapost.poststreamdemosc.rest
+package me.contrapost.poststreamerdemosc.rest
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.Patterns.ask
-import me.contrapost.poststreamdemosc.actors.*
-import me.contrapost.poststreamdemosc.actors.ActorNamePrefixes.TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX
-import me.contrapost.poststreamdemosc.actors.PostSubscriptionActor.Companion.validateSetup
-import me.contrapost.poststreamdemosc.demomessagingservice.DemoMessagingService
-import me.contrapost.poststreamdemosc.pollers.twitter.TwitterPostPoller
+import me.contrapost.poststreamerdemosc.actors.*
+import me.contrapost.poststreamerdemosc.actors.ActorNamePrefixes.TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX
+import me.contrapost.poststreamerdemosc.actors.PostSubscriptionActor.Companion.validateSetup
+import me.contrapost.poststreamerdemosc.demomessagingservice.DemoMessagingService
+import me.contrapost.poststreamerdemosc.pollers.twitter.TwitterPostPoller
 import org.springframework.web.bind.annotation.*
 import scala.util.Failure
 import scala.util.Success

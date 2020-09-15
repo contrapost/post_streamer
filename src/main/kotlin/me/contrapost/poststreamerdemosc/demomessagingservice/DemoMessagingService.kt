@@ -1,6 +1,6 @@
-package me.contrapost.poststreamdemosc.demomessagingservice
+package me.contrapost.poststreamerdemosc.demomessagingservice
 
-import me.contrapost.poststreamdemosc.models.Post
+import me.contrapost.poststreamerdemosc.models.Post
 
 object DemoMessagingService {
     val service: MutableMap<String, MutableList<Post>> = mutableMapOf()

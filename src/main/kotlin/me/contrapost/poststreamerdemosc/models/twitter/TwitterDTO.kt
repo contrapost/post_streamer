@@ -1,8 +1,8 @@
-package me.contrapost.poststreamdemosc.models.twitter
+package me.contrapost.poststreamerdemosc.models.twitter
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
-import me.contrapost.poststreamdemosc.models.Post
+import me.contrapost.poststreamerdemosc.models.Post
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class TweetDto(

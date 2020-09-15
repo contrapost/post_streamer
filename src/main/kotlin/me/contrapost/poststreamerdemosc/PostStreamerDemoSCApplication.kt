@@ -1,11 +1,11 @@
-package me.contrapost.poststreamdemosc
+package me.contrapost.poststreamerdemosc
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class PostStreamDemoSCApplication
+class PostStreamerDemoSCApplication
 
 fun main(args: Array<String>) {
-	runApplication<PostStreamDemoSCApplication>(*args)
+	runApplication<PostStreamerDemoSCApplication>(*args)
 }

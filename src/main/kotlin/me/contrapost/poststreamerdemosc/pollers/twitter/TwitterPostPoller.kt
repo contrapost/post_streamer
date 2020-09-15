@@ -1,11 +1,11 @@
-package me.contrapost.poststreamdemosc.pollers.twitter
+package me.contrapost.poststreamerdemosc.pollers.twitter
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import me.contrapost.poststreamdemosc.models.Post
-import me.contrapost.poststreamdemosc.models.twitter.TweetDto
-import me.contrapost.poststreamdemosc.pollers.PostPoller
-import me.contrapost.poststreamdemosc.util.getResponse
-import me.contrapost.poststreamdemosc.util.mapper
+import me.contrapost.poststreamerdemosc.models.Post
+import me.contrapost.poststreamerdemosc.models.twitter.TweetDto
+import me.contrapost.poststreamerdemosc.pollers.PostPoller
+import me.contrapost.poststreamerdemosc.util.getResponse
+import me.contrapost.poststreamerdemosc.util.mapper
 import org.apache.http.util.EntityUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
