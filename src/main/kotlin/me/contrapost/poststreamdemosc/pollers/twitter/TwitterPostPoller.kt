@@ -36,9 +36,9 @@ class TwitterPostPoller : PostPoller {
                     val tweets: List<TweetDto> = mapper.readValue(entityAsString)
                     lastTweet = tweets.getOrNull(0)
                 }
-                else -> fetchingException(errorCause, entityAsString, userScreenName)
+                else -> fetchingException(errorCause, entityAsString)
             }
-        }.onFailure { fetchingException(errorCause, it.message, userScreenName) }
+        }.onFailure { fetchingException(errorCause, it.message) }
 
         return lastTweet
     }
@@ -64,14 +64,14 @@ class TwitterPostPoller : PostPoller {
                 }
                 // can retry TODO: limit number of retries
                 HttpStatus.valueOf(response.statusLine.statusCode).is5xxServerError -> {}
-                else -> fetchingException(errorCause, entityAsString, userScreenName)
+                else -> fetchingException(errorCause, entityAsString)
             }
-        }.onFailure { fetchingException(errorCause, it.message, userScreenName) }
+        }.onFailure { fetchingException(errorCause, it.message) }
 
         return newTweets
     }
 
-    private fun fetchingException(errorCause: String, additionalLogMessage: String?, userScreenName: String): Nothing {
+    private fun fetchingException(errorCause: String, additionalLogMessage: String?): Nothing {
         logger.error("$errorCause: $additionalLogMessage")
         throw IllegalArgumentException(errorCause)
     }

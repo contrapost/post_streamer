@@ -6,6 +6,7 @@ import akka.pattern.Patterns.ask
 import me.contrapost.poststreamdemosc.actors.*
 import me.contrapost.poststreamdemosc.actors.ActorNamePrefixes.TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX
 import me.contrapost.poststreamdemosc.actors.PostSubscriptionActor.Companion.validateSetup
+import me.contrapost.poststreamdemosc.demomessagingservice.DemoMessagingService
 import me.contrapost.poststreamdemosc.pollers.twitter.TwitterPostPoller
 import org.springframework.web.bind.annotation.*
 import scala.util.Failure
@@ -46,7 +47,13 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
                     setUpValidation.valid -> {
                         try {
                             val subscriptionActor =
-                                actorSystem.actorOf(PostSubscriptionActor.props(twitterUserName!!, TwitterPostPoller()), actorName)
+                                actorSystem.actorOf(
+                                    PostSubscriptionActor.props(
+                                        twitterUserName!!,
+                                        subscriberId!!,
+                                        TwitterPostPoller()
+                                    ), actorName
+                                )
 
                             val future = CompletableFuture<SubscriptionRegistrationResult>()
                             ask(subscriptionActor, RegisterSubscription(pollInterval), 3_000)
@@ -89,6 +96,11 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
             .entity("Cancellation of subscription '$twitterUserName' for subscriber with id '$subscriberId' accepted")
             .build()
     }
+
+    @PostMapping(value = ["twitter/demo-result/queue/{queueId}"])
+    fun getLastTweets(
+        @PathVariable queueId: String
+    ): Response = Response.ok().entity(DemoMessagingService.getLastPosts(queueId)).build()
 
     fun complete(futureResult: CompletableFuture<SubscriptionRegistrationResult>) = { result: Any ->
         try {
