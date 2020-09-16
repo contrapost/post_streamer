@@ -20,10 +20,9 @@ import javax.validation.Valid
 import javax.validation.constraints.NotEmpty
 import javax.validation.constraints.Pattern
 import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
 
 @RestController
-class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
+class PostSubscriptionEndpoint(private val actorSystem: ActorSystem) {
 
     @PostMapping(value = ["/twitter"], produces = [MediaType.APPLICATION_JSON])
     fun createSubscription(

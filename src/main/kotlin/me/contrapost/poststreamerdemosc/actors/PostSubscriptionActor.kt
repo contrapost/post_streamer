@@ -20,7 +20,7 @@ class PostSubscriptionActor(
     private val pollerService: PostPoller
 ) : AbstractActor() {
 
-    private var lastTweetId: String? = null
+    private var lastPostId: String? = null
     private lateinit var pollScheduler: Cancellable
     private val publisherActorName = "publisher-actor-${self.path().name()}"
     private var queueId: String? = null
@@ -48,30 +48,30 @@ class PostSubscriptionActor(
     }
 
     override fun postStop() {
-        logger.info("Stopped to stream tweets from $userName")
+        logger.info("Stopped to stream posts from $userName")
         super.postStop()
     }
 
     override fun createReceive(): Receive = receiveBuilder()
-        .match(PollCmd::class.java, ::pollTweets)
+        .match(PollCmd::class.java, ::pollPosts)
         .match(RegisterSubscription::class.java, ::registerSubscription)
         .match(Shutdown::class.java, ::shutdown)
         .build()
 
-    private fun pollTweets(pollMessage: PollCmd) {
-        val tweets = pollerService.getNewPosts(userName, lastTweetId)
+    private fun pollPosts(pollMessage: PollCmd) {
+        val posts = pollerService.getNewPosts(userName, lastPostId)
         when {
-            tweets.isNotEmpty() -> {
-                lastTweetId = tweets.first().id
-                logger.info("Received new tweets: $tweets")
-                addNewTweets(tweets)
+            posts.isNotEmpty() -> {
+                lastPostId = posts.first().id
+                logger.info("Received new posts: $posts")
+                addNewPosts(posts)
             }
-            else -> logger.info("No new tweets")
+            else -> logger.info("No new posts")
         }
     }
 
-    private fun addNewTweets(tweets: List<Post>) {
-        publisherActor.tell(AddToQueue(tweets), self)
+    private fun addNewPosts(posts: List<Post>) {
+        publisherActor.tell(AddToQueue(posts), self)
     }
 
     private fun registerSubscription(registerSubscriptionCmd: RegisterSubscription) {
@@ -80,8 +80,8 @@ class PostSubscriptionActor(
         runCatching {
             pollerService.getLastPost(userName)?.id
         }.onSuccess {
-            lastTweetId = it
-            logger.info("Starting to stream tweets from $userName, last tweet: $lastTweetId")
+            lastPostId = it
+            logger.info("Starting to stream posts from $userName, last post: $lastPostId")
             when (createQueue()) {
                 true -> {
                     pollScheduler = initializeScheduler(pollInterval)
