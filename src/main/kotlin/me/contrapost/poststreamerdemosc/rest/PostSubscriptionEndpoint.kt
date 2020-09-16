@@ -8,6 +8,9 @@ import me.contrapost.poststreamerdemosc.actors.ActorNamePrefixes.TWITTER_SUBSCRI
 import me.contrapost.poststreamerdemosc.actors.PostSubscriptionActor.Companion.validateSetup
 import me.contrapost.poststreamerdemosc.demomessagingservice.DemoMessagingService
 import me.contrapost.poststreamerdemosc.pollers.twitter.TwitterPostPoller
+import me.contrapost.poststreamerdemosc.util.mapper
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import scala.util.Failure
 import scala.util.Success
@@ -25,7 +28,7 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
     @PostMapping(value = ["/twitter"], produces = [MediaType.APPLICATION_JSON])
     fun createSubscription(
         @RequestBody @Valid subscriptionRequest: SubscriptionRequest
-    ): Response {
+    ): ResponseEntity<String> {
         val twitterUserName = subscriptionRequest.twitterUserName
         val subscriberId = subscriptionRequest.subscriberId
 
@@ -36,7 +39,7 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
 
         return resolveCompletionStage.toCompletableFuture()
             .thenApply {
-                Response.status(Response.Status.CONFLICT).entity("Already exists").build()
+                ResponseEntity.status(HttpStatus.CONFLICT).body("Already exists")
             }.exceptionally {
 
                 val pollInterval = subscriptionRequest.updateInterval?.toDuration()
@@ -60,16 +63,18 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
                                 .onComplete(complete(future), actorSystem.dispatcher)
                             val result = future.get()
                             when {
-                                result.created -> Response.ok().entity(result).build()
-                                else -> Response.status(Response.Status.BAD_REQUEST).entity(result).build()
+                                result.created -> ResponseEntity.status(HttpStatus.OK)
+                                    .body(mapper.writeValueAsString(result))
+                                else -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                    .body(mapper.writeValueAsString(result))
                             }
                         } catch (thr: Throwable) {
-                            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                                .entity(thr.message ?: "internal error message")
-                                .build()
+                            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(thr.message ?: "internal error message")
                         }
                     }
-                    else -> Response.status(Response.Status.BAD_REQUEST).entity(setUpValidation).build()
+                    else -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(mapper.writeValueAsString(setUpValidation.errors))
                 }
             }.get()
     }
@@ -77,30 +82,29 @@ class TweetSubscriptionEndpoint(private val actorSystem: ActorSystem) {
     @DeleteMapping(value = ["/twitter/{subscriberId}"])
     fun deleteAllSubscriptions(
         @PathVariable subscriberId: String
-    ): Response {
+    ): ResponseEntity<String> {
         actorSystem.actorSelection("user/$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX*$subscriberId")
             .tell(Shutdown, ActorRef.noSender())
-        return Response.status(Response.Status.ACCEPTED)
-            .entity("Cancellation of subscriptions for subscriber with id '$subscriberId' accepted")
-            .build()
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+            .body("Cancellation of subscriptions for subscriber with id '$subscriberId' accepted")
     }
 
     @DeleteMapping(value = ["/twitter/{subscriberId}/{twitterUserName}"])
     fun deleteSubscription(
         @PathVariable subscriberId: String,
         @PathVariable twitterUserName: String
-    ): Response {
+    ): ResponseEntity<String> {
         actorSystem.actorSelection("user/$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId")
             .tell(Shutdown, ActorRef.noSender())
-        return Response.status(Response.Status.ACCEPTED)
-            .entity("Cancellation of subscription '$twitterUserName' for subscriber with id '$subscriberId' accepted")
-            .build()
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+            .body("Cancellation of subscription '$twitterUserName' for subscriber with id '$subscriberId' accepted")
     }
 
     @PostMapping(value = ["twitter/demo-result/queue/{queueId}"])
     fun getLastTweets(
         @PathVariable queueId: String
-    ): Response = Response.ok().entity(DemoMessagingService.getLastPosts(queueId)).build()
+    ): ResponseEntity<String> =
+        ResponseEntity.status(HttpStatus.OK).body(mapper.writeValueAsString(DemoMessagingService.getLastPosts(queueId)))
 
     fun complete(futureResult: CompletableFuture<SubscriptionRegistrationResult>) = { result: Any ->
         try {
