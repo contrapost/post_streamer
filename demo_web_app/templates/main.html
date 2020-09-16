@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+<h2>Tweet subscriber</h2>
+
+{% if not user_name and not subscription_id %}
+<form method='POST' action='/register_subscription'>
+  <table>
+    <tr>
+      <td>Twitter user name:</td>
+      <td><input name='user_name' type='text' required></td>
+    </tr>
+    <tr>
+      <td>Subscriber id:</td>
+      <td><input name='subscriber_id' type='text' required></td>
+    </tr>
+    <tr>
+      <td>Update interval:</td>
+      <td><input name='update_interval' type='text' value="30S"></td>
+    </tr>
+  </table>
+  <p><input value='Register' type='SUBMIT'></p>
+</form>
+{% endif %}
+
+{% if subscription_id %}
+<p>Subscription for {{ user_name }}</p>
+<form method='POST' action='/get_last_tweets'>
+  <table>
+    <input name='subscription_id' type='hidden' value='{{ subscription_id }}'>
+    <input type="hidden" name='user_name' value="{{ user_name }}">
+    <input type="hidden" name='subscriber_id' value="{{ subscriber_id }}">
+    <tr>
+      <td><input value='Check last tweets' type='SUBMIT' id="check-tweets" style="visibility:hidden;"></td>
+    </tr>
+  </table>
+</form>
+
+<form action="/delete_subscription" method="POST">
+  <input type="hidden" name='subscriber_id' value="{{ subscriber_id }}">
+  <input type="hidden" name='user_name' value="{{ user_name }}">
+  <input value='UNSUBSCRIBE' type='SUBMIT'>
+</form>
+
+{% block javascript %}
+<script>
+  setInterval(function() {document.getElementById("check-tweets").click();}, 10000);
+</script>
+{% endblock %}
+{% endif %}
+
+{% if tweets %}
+<p>Last tweets:</p>
+<ul>
+  {% for tweet in tweets %}
+  <li>{{ tweet }}</li>
+  {% endfor %}
+</ul>
+{% elif not tweet and subscription_id %}
+<p>No new tweets - {{ now }}</p>
+{% endif %}
+
+{% if error %}
+{{ error }}
+<form action="/" method="get">
+  <input type="SUBMIT" value="Back">
+</form>
+{% endif %}
+
+{% endblock %}
