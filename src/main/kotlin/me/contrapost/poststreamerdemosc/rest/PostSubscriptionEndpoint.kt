@@ -28,7 +28,10 @@ class PostSubscriptionEndpoint(private val actorSystem: ActorSystem) {
     fun createSubscription(
         @RequestBody @Valid subscriptionRequest: SubscriptionRequest
     ): ResponseEntity<String> {
-        val twitterUserName = subscriptionRequest.twitterUserName
+        val twitterUserName = when {
+            subscriptionRequest.twitterUserName!!.first() == '@' -> subscriptionRequest.twitterUserName.substring(1)
+            else -> subscriptionRequest.twitterUserName
+        }
         val subscriberId = subscriptionRequest.subscriberId
 
         val actorName = "$TWITTER_SUBSCRIPTION_ACTOR_NAME_PREFIX-$twitterUserName-$subscriberId"
@@ -51,7 +54,7 @@ class PostSubscriptionEndpoint(private val actorSystem: ActorSystem) {
                             val subscriptionActor =
                                 actorSystem.actorOf(
                                     PostSubscriptionActor.props(
-                                        twitterUserName!!,
+                                        twitterUserName,
                                         subscriberId!!,
                                         TwitterPostPoller()
                                     ), actorName
