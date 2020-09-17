@@ -15,7 +15,7 @@ be sent alongside the subscribtion request. One user of the application can requ
 
 Application fetches only posts published after subscription registration. There is no guarantee
 that all the published posts would be delivered to the subscriber as component that polls is **stateless**
-and after each restart it fetches the last post and start streaming form this post. Next step in development should be
+and after each restart it fetches the last post and starts streaming from this post. Next step in development should be
 refactoring of the mentioned component to add state and ensure seamless streaming of all posts published 
 after the subscription requested. 
 
@@ -39,7 +39,7 @@ based on executing of two requests to the dedicated Twitter API endpoint:
 
 #### REST API
 Application exposes following **REST endpoints:**
-####/post-subscription/twitter (POST)
+#### /post-subscription/twitter (POST)
 Creation of a subscription. Request should contain:
 * subscriber id, 
 * twitter account to subscribe to
@@ -49,17 +49,17 @@ Requester can expect:
 * 200: confirmation with "topic" id if the subscription is created 
 * 409: if subscription already exists
 
-####/post-subscription/twitter/{subscriberId} (DELETE)
+#### /post-subscription/twitter/{subscriberId} (DELETE)
 Cancellation of all subscriptions for a subscriber.
 Requester can expect: 
 * 202: confirmation that cancellation request is accepted
 
-####/post-subscription/twitter/{subscriberId}/{twitterUserName} (DELETE)
+#### /post-subscription/twitter/{subscriberId}/{twitterUserName} (DELETE)
 Cancellation of a given subscription for a subscriber.
 Requester can expect: 
 * 202: confirmation that cancellation request is accepted
 
-####/twitter/demo-result/queue/{queueId} (POST)
+#### /twitter/demo-result/queue/{queueId} (POST)
 Simulates messaging service: returns all "messages" (tweets) from the "topic"
 Requester can expect: 
 * 200: json object with array that contains all not-retrieved messages
@@ -92,9 +92,9 @@ The first step in further development is test coverage.
 1. Connection to Twitter API requires Authentication Token (Bearer Token) that should be available via `TWITTER_BEARER_TOKEN`
 environment variable (can be received through Twitter developer portal)
 2. Backend server can be run:
-- directly from IDE (IntelliJ) 
-- using Docker: `docker build -t poststreamerdemosc .`, `docker run -p 8080:8080 --env-file ./env.list poststreamerdemosc` (it's necessary to add a file `env.list` that contains `TWITTER_BEARER_TOKEN=<TOKEN>`)
-- from command line with java: `export TWITTER_BEARER_TOKEN=<TOKEN>`, `./mvnw package && java -jar target/poststreamerdemosc-0.0.1-SNAPSHOT.jar`
+    - directly from IDE (IntelliJ) 
+    - using Docker: `docker build -t poststreamerdemosc .`, `docker run -p 8080:8080 --env-file ./env.list poststreamerdemosc` (it's necessary to add a file `env.list` that contains `TWITTER_BEARER_TOKEN=<TOKEN>`)
+    - from command line with java: `export TWITTER_BEARER_TOKEN=<TOKEN>`, `./mvnw package && java -jar target/poststreamerdemosc-0.0.1-SNAPSHOT.jar`
 3. demo web-app can be run: `cd demo_web_app`, `python3 demo_web_app.py`
 
 ### demo_web_app
