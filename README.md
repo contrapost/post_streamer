@@ -85,8 +85,9 @@ cluster approach and integration with various third-party systems.
 ### Further development
 1. Currently, application is not covered by tests (first priority was to create a functional presentation of basic concepts).
 The first step in further development is test coverage.
-2. Developments of integration with pluggable messaging services for connection to messaging systems.
-3. Refactoring of actors to add state and ensure seamless streaming of posts even in the case of actor restarts.
+2. Add Swagger annotations to REST endpoints
+3. Developments of integration with pluggable messaging services for connection to messaging systems.
+4. Refactoring of actors to add state and ensure seamless streaming of posts even in the case of actor restarts.
 
 ### How to run
 1. Connection to Twitter API requires Authentication Token (Bearer Token) that should be available via `TWITTER_BEARER_TOKEN`
